@@ -1,4 +1,7 @@
 import ProductManagerDB from '../DAL/dao/productManagerMongo.js';
+import CustomError from "../services/errors/CustomError.js";
+import EErrors from "../services/errors/enum.js";
+import { generateProductErrorInfo } from "../services/errors/info.js";
 
 export const dbM = new ProductManagerDB()
 
@@ -37,38 +40,45 @@ export const getOneProductById = async (req, res) => {
     }
 }
 
+
 export const createProduct = async (req, res) => {
-    const { title, description, code, price,
-        status, stock, category, thumbnail } = req.body
-    if ([title, description, code, price, stock, category].includes(undefined)) return res.status(400).json({ error: "Faltan campos obligatorios" })
+    const { title, description, code, price, status, stock, category, thumbnail } = req.body;
+    const product = { title, description, code, price, status, stock, category, thumbnail }
     try {
-        let obj = {}
-
-        obj.title = title.toString()
-        obj.description = description.toString()
-        obj.code = code.toString()
-        obj.price = parseFloat(price)
-        obj.status = Boolean(status ? status : true)
-        obj.stock = parseInt(stock)
-        obj.category = category.toString()
-        obj.thumbnail = thumbnail ? thumbnail : []
-        if (thumbnail && Array.isArray(thumbnail)) {
-            for (let i = 0; i < thumbnail.length; i++) {
-                obj.thumbnail[i] = thumbnail[i].toString();
-
-            }
+        // Verificar si los campos obligatorios están presentes
+        if (!title || !description || !code || !price || !stock || !category) {
+            throw CustomError.createError({
+                name: 'Error en Creacion de Producto',
+                cause: generateProductErrorInfo(product),
+                message: 'Error al intentar crear el Producto',
+                code: EErrors.REQUIRED_DATA,
+            });
         }
 
-        let arrProduct = await dbM.addProduct(obj)
+        // Crear el objeto del producto
+        const obj = {
+            title,
+            description,
+            code,
+            price,
+            status,
+            stock,
+            category,
+            thumbnail,
+        };
 
-        return res.status(200).json({ result: arrProduct })
-    } catch (e) {
-        console.log(e)
-        return res.status(500).json({ error: e.message })
+        // Agregar el producto a la base de datos
+        const arrProduct = await dbM.addProduct(obj);
+
+        return res.status(200).json({ result: arrProduct });
+    } catch (error) {
+        // Manejo de errores
+        console.error(error);
+
+        // Enviar una respuesta de error al cliente
+        return res.status(500).json({ error: error.message || 'Error al crear el producto' });
     }
-
-
-}
+};
 
 export const productUpdater = async (req, res) => {
     const { pid } = req.params
@@ -110,7 +120,7 @@ export const productDeleter = async (req, res) => {
     if (!pid) return res.status(400).json({ error: "Debe enviar un id de producto por params" })
     try {
         await dbM.deleteProduct(pid)
-        return res.status(200).json({ result: "Product Deleted" })
+        return res.status(200).json({ result: "Producto borrado" })
     } catch (e) {
         console.log(e)
         return res.status(500).json({ error: e.message })

@@ -2,6 +2,10 @@ import { Router } from 'express';
 import { dbM as dbInstance } from '../controller/product.controller.js';
 import { dbM as dbCart } from '../controller/cart.controller.js';
 import { adminValidator, userValidator } from "../middlewares/auth.middleware.js"
+import { nanoid } from 'nanoid';
+import { faker } from '@faker-js/faker';
+
+
 
 // Importar todos los routers;
 export const router = Router();
@@ -12,15 +16,17 @@ router.get("/products", userValidator, async (req, res) => {
         const { limit, page, sort } = req.query
         let on = await dbInstance.getProducts(limit, page, sort)
         let productos = JSON.parse(JSON.stringify(on))
-        console.log(productos)
         res.render("products", {
-            email: req.user.email,
-            adminRole: req.user.adminRole,
             hasNextPage: productos.hasNextPage,
             hasPrevPage: productos.hasPrevPage,
             nextLink: productos.nextLink ? `http://localhost:8080/products?page=${productos.page + 1}&limit=${limit?limit:10}` : null,
             prevLink: productos.prevLink ? `http://localhost:8080/products?page=${productos.page - 1}&limit=${limit?limit:10}` : null,
             productos: productos.payload,
+            first_name: req.user.first_name,
+            last_name: req.user.last_name,
+            email: req.user.email,
+            adminRole: req.user.adminRole,
+            age: req.user.age
             
         })
     } catch (e) {
@@ -108,3 +114,30 @@ router.get("/chat", async (req, res) => {
         res.send(500).json({ error: e.message })
     }
 })
+
+//-----------------------------------Mocking--------------------------------//
+
+router.get("/mockingproducts", async(req,res)=>{
+
+    const products = [];
+
+    for (let i = 0; i < 100; i++) {
+        const product = {
+            id: nanoid(),
+            title: faker.commerce.productName(),
+            description: `Product ${i + 1}`,
+            price: faker.commerce.price(),
+            thumbnail: [faker.image.url()],
+            code: faker.string.uuid(),
+            stock: faker.number.int({ min: 0, max: 100 }),
+            status: faker.datatype.boolean(),
+            category: faker.commerce.department(),
+            availability: faker.helpers.arrayElement(['in_stock', 'out_of_stock']) 
+        };
+
+        products.push(product);
+    }
+
+    res.send(products);
+})
+//-------------------------------------Mocking-----------------------------//
